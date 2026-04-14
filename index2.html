@@ -342,21 +342,23 @@ async function loadSetup() {
     const text = await res.text();
     const rows = parseSheet(text);
 
-    // Fila 0 = headers, Fila 1 = valores
-    const headers = rows[0]?.c ?? [];
-    const values  = rows[1]?.c ?? [];
+    console.log('Filas recibidas:', rows.length);
 
-    // Construir mapa header → valor (normalizado sin tildes)
-    headers.forEach((cell, i) => {
-      const label = String(cell?.v ?? '').trim().toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const value = String(values[i]?.v ?? '').trim();
-      if (label) setupData[label] = value;
-      // También guardar por índice de columna como fallback
-      setupData[`_col${i}`] = value;
+    let dataRow;
+    if (rows.length >= 2) {
+      // Tiene header + datos: usar fila 1 (index 1)
+      dataRow = rows[1]?.c ?? [];
+    } else {
+      // Solo una fila: esos son los datos directamente
+      dataRow = rows[0]?.c ?? [];
+    }
+
+    // Guardar por indice de columna
+    dataRow.forEach((cell, i) => {
+      setupData[`_col${i}`] = String(cell?.v ?? '').trim();
     });
 
-    console.log('📋 setupData:', setupData);
+    console.log('setupData:', setupData);
     applySetup();
   } catch(e) {
     console.warn('No se pudo cargar setup-data:', e);
