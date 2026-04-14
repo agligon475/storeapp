@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FerreApp - Tu Ferretería Digital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com/"></script>
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <style>
+    :root {
+      --color1: #3B82F6;
+      --color2: #10B981;
+      --color3: #1e293b;
+    }
+    * { font-family: 'Nunito', sans-serif; }
+    body { background: #f1f5f9; }
+
+    /* Dynamic brand colors applied via JS */
+    .brand-bg { background-color: var(--color1) !important; }
+    .brand-btn { background-color: var(--color2) !important; }
+    .brand-text { color: var(--color3) !important; }
+    .brand-accent { color: var(--color1) !important; }
+
+    /* Product card */
+    .product-card {
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      cursor: pointer;
+    }
+    .product-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 32px -8px rgba(0,0,0,0.15);
+    }
+
+    /* Quantity stepper */
+    .qty-btn { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; transition:background 0.2s; }
+
+    /* Banner */
+    #banner-img { width:100%; height:350px; object-fit:cover; display:block; }
+
+    /* Modal */
+    #product-modal { display:none; position:fixed; inset:0; z-index:200; }
+    #product-modal.open { display:flex; }
+    .modal-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(3px); }
+    .modal-box { position:relative; z-index:10; max-width:620px; width:95%; max-height:90vh; overflow-y:auto; background:#fff; border-radius:16px; padding:0; }
+    .modal-img { width:100%; height:260px; object-fit:cover; border-radius:16px 16px 0 0; }
+
+    /* Checkout modal */
+    #checkout-modal { display:none; position:fixed; inset:0; z-index:300; }
+    #checkout-modal.open { display:flex; }
+
+    /* Cart dropdown */
+    #cart-dropdown { transition: opacity 0.2s; }
+    
+    /* Flag icons via emoji - simple approach */
+    .flag { font-size:1.1rem; }
+
+    /* Footer */
+    footer a { transition: color 0.2s; }
+    footer a:hover { color: var(--color1); }
+
+    /* Notification */
+    .toast { position:fixed; bottom:24px; right:24px; z-index:999; padding:12px 20px; border-radius:12px; background:#22c55e; color:#fff; font-weight:700; font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,0.15); display:flex; align-items:center; gap:8px; animation:slideUp 0.3s ease; }
+    @keyframes slideUp { from {opacity:0;transform:translateY(20px);} to {opacity:1;transform:translateY(0);} }
+
+    /* Input styles */
+    input, select, textarea { outline:none; border:1.5px solid #e2e8f0; border-radius:8px; padding:8px 12px; width:100%; transition:border-color 0.2s; font-family:inherit; }
+    input:focus, select:focus, textarea:focus { border-color: var(--color1); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:99px; }
+
+    /* Category filter pills */
+    .cat-pill { padding:6px 16px; border-radius:99px; font-size:13px; font-weight:700; cursor:pointer; border:2px solid #e2e8f0; background:#fff; color:#64748b; transition:all 0.2s; }
+    .cat-pill.active { background:var(--color1); border-color:var(--color1); color:#fff; }
+  </style>
+</head>
+<body>
+
+<!-- ==================== HEADER ==================== -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+  <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+    <!-- Logo / empresa name -->
+    <div class="flex items-center gap-3">
+      <img id="logo-img" src="" alt="Logo" class="h-10 w-10 rounded-full object-cover hidden">
+      <h1 id="empresa-nombre" class="text-2xl font-extrabold brand-accent">FerreApp 🛠️</h1>
+    </div>
+    <!-- Cart button -->
+    <div class="relative">
+      <button id="cart-btn" class="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-full transition">
+        <i data-feather="shopping-cart" class="w-5 h-5"></i>
+        <span id="cart-count" class="brand-bg text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">0</span>
+      </button>
+      <!-- Cart dropdown -->
+      <div id="cart-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl z-50 border border-gray-100">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+          <h3 class="font-bold text-gray-700 text-base">Tu Carrito</h3>
+          <span id="cart-item-count-label" class="text-xs text-gray-400">0 artículos</span>
+        </div>
+        <div id="cart-items" class="max-h-64 overflow-y-auto p-2">
+          <p class="text-gray-400 text-sm p-4 text-center">Tu carrito está vacío</p>
+        </div>
+        <div class="p-4 border-t border-gray-100 flex justify-between items-center">
+          <span class="font-semibold text-gray-600">Total:</span>
+          <span id="cart-total" class="font-extrabold text-lg brand-accent">$0.00</span>
+        </div>
+        <button id="checkout-btn" class="w-full brand-btn hover:opacity-90 text-white py-3 px-4 rounded-b-2xl transition font-bold disabled:opacity-40" disabled>
+          <span class="flex items-center justify-center gap-2"><i data-feather="message-circle" class="w-4 h-4"></i> Realizar Pedido por WhatsApp</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== BANNER ==================== -->
+<div id="banner-section" class="hidden">
+  <img id="banner-img" src="" alt="Banner">
+</div>
+
+<!-- ==================== MAIN ==================== -->
+<main class="container mx-auto px-4 py-8">
+
+  <!-- Store info row -->
+  <div id="store-info-bar" class="hidden bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center text-sm text-gray-500">
+    <a id="info-email" href="#" class="flex items-center gap-2 hover:text-blue-500 transition"><i data-feather="mail" class="w-4 h-4"></i></a>
+    <a id="info-phone" href="#" class="flex items-center gap-2 hover:text-blue-500 transition"><i data-feather="phone" class="w-4 h-4"></i></a>
+    <span id="info-address" class="flex items-center gap-2"><i data-feather="map-pin" class="w-4 h-4"></i></span>
+    <span id="info-hours" class="flex items-center gap-2"><i data-feather="clock" class="w-4 h-4"></i></span>
+  </div>
+
+  <!-- Title + search -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+    <h2 class="text-3xl font-extrabold text-gray-800">Nuestros Productos</h2>
+    <div class="relative w-full md:w-72">
+      <i data-feather="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+      <input id="search-input" type="text" placeholder="Buscar producto..." class="pl-9 py-2 pr-4 w-full border border-gray-200 rounded-full text-sm focus:border-blue-400">
+    </div>
+  </div>
+
+  <!-- Category pills -->
+  <div id="cat-pills" class="flex flex-wrap gap-2 mb-6"></div>
+
+  <!-- Products grid -->
+  <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div class="col-span-full text-center py-12">
+      <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full mb-3"></div>
+      <p class="text-gray-400">Cargando productos...</p>
+    </div>
+  </div>
+</main>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="bg-white border-t border-gray-100 py-8 mt-12">
+  <div class="container mx-auto px-4">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+      <p id="footer-empresa" class="font-bold text-gray-600 text-sm"></p>
+      <div class="flex items-center gap-4">
+        <a id="social-instagram" href="#" target="_blank" class="text-gray-400 hover:text-pink-500 transition"><i data-feather="instagram"></i></a>
+        <a id="social-facebook" href="#" target="_blank" class="text-gray-400 hover:text-blue-600 transition"><i data-feather="facebook"></i></a>
+        <a id="social-twitter" href="#" target="_blank" class="text-gray-400 hover:text-sky-400 transition"><i data-feather="twitter"></i></a>
+        <a id="social-website" href="#" target="_blank" class="text-gray-400 hover:text-gray-700 transition"><i data-feather="globe"></i></a>
+      </div>
+      <p class="text-gray-400 text-xs">© 2025 FerreApp. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ==================== PRODUCT MODAL ==================== -->
+<div id="product-modal" role="dialog" aria-modal="true">
+  <div class="modal-overlay" id="modal-overlay"></div>
+  <div class="flex items-center justify-center w-full h-full p-4">
+    <div class="modal-box">
+      <img id="modal-img" src="" alt="" class="modal-img">
+      <div class="p-6">
+        <div class="flex justify-between items-start mb-2">
+          <div>
+            <h2 id="modal-name" class="text-2xl font-extrabold text-gray-800"></h2>
+            <p id="modal-brand" class="text-sm text-gray-400 mt-1"></p>
+          </div>
+          <button id="modal-close" class="text-gray-400 hover:text-gray-700 transition ml-4">
+            <i data-feather="x" class="w-6 h-6"></i>
+          </button>
+        </div>
+        <div class="flex gap-2 mb-4 flex-wrap">
+          <span id="modal-category" class="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1 rounded-full"></span>
+          <span id="modal-origin" class="bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1 rounded-full"></span>
+        </div>
+        <p id="modal-details" class="text-gray-600 text-sm leading-relaxed mb-6"></p>
+        <div class="flex items-center justify-between">
+          <span id="modal-price" class="text-2xl font-extrabold brand-accent"></span>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 border border-gray-200 rounded-full px-2 py-1">
+              <button class="qty-btn hover:bg-gray-100" id="modal-qty-minus">−</button>
+              <span id="modal-qty-display" class="font-bold w-5 text-center">1</span>
+              <button class="qty-btn hover:bg-gray-100" id="modal-qty-plus">+</button>
+            </div>
+            <button id="modal-add-btn" class="brand-btn hover:opacity-90 text-white px-5 py-2 rounded-full font-bold transition text-sm">
+              Añadir al carrito
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CHECKOUT MODAL ==================== -->
+<div id="checkout-modal" role="dialog" aria-modal="true">
+  <div class="modal-overlay" id="checkout-overlay"></div>
+  <div class="flex items-center justify-center w-full h-full p-4">
+    <div class="modal-box" style="max-width:520px;">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-extrabold text-gray-800">Completar Pedido</h2>
+          <button id="checkout-modal-close" class="text-gray-400 hover:text-gray-700"><i data-feather="x" class="w-5 h-5"></i></button>
+        </div>
+
+        <!-- Order summary -->
+        <div class="bg-gray-50 rounded-xl p-4 mb-6">
+          <h3 class="font-bold text-sm text-gray-500 uppercase tracking-wide mb-3">Resumen del pedido</h3>
+          <div id="checkout-items-list" class="space-y-2 text-sm text-gray-700"></div>
+          <div class="border-t border-gray-200 mt-3 pt-3 flex justify-between font-extrabold">
+            <span>Total</span>
+            <span id="checkout-total-display" class="brand-accent"></span>
+          </div>
+        </div>
+
+        <!-- Form -->
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-bold text-gray-600 mb-1 block">Nombre y Apellido *</label>
+            <input type="text" id="f-nombre" placeholder="Juan García">
+          </div>
+          <div>
+            <label class="text-sm font-bold text-gray-600 mb-1 block">DNI *</label>
+            <input type="text" id="f-dni" placeholder="00.000.000">
+          </div>
+          <div>
+            <label class="text-sm font-bold text-gray-600 mb-1 block">Logística *</label>
+            <select id="f-logistica">
+              <option value="">Seleccionar...</option>
+              <option value="retiro">Retiro por la tienda</option>
+              <option value="envio">Envío a domicilio</option>
+            </select>
+          </div>
+          <div id="f-direccion-group" class="hidden">
+            <label class="text-sm font-bold text-gray-600 mb-1 block">Dirección de envío *</label>
+            <textarea id="f-direccion" rows="2" placeholder="Calle, número, piso, ciudad..."></textarea>
+          </div>
+          <div>
+            <label class="text-sm font-bold text-gray-600 mb-1 block">Forma de pago *</label>
+            <select id="f-pago">
+              <option value="">Seleccionar...</option>
+              <option value="Transferencia">Transferencia bancaria</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="send-whatsapp-btn" class="w-full brand-btn hover:opacity-90 text-white py-3 rounded-xl font-bold mt-6 flex items-center justify-center gap-2 transition">
+          <i data-feather="message-circle" class="w-5 h-5"></i> Enviar Pedido por WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SCRIPTS ==================== -->
+<script>
+feather.replace();
+
+// ─── IDs de las hojas ─────────────────────────────────────────────
+const SETUP_SHEET_ID = '1Eu58UHSr6DvlNeSS4lyB9tb6GPrnzVY4YkbaZLz9yKA';
+const PRODUCTS_SHEET_ID = '1CVQYJmTc6FM1Okm6JShnOi2llZatjgmBym4pqHfmbmo';
+
+// ─── Estado ───────────────────────────────────────────────────────
+let cart = [];
+let allProducts = [];
+let filteredProducts = [];
+let activeCategory = 'Todos';
+let setupData = {};
+let modalProduct = null;
+let modalQty = 1;
+
+// ─── Helpers ──────────────────────────────────────────────────────
+function sheetUrl(id) {
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`;
+}
+
+function parseSheet(text) {
+  const json = JSON.parse(text.substr(47).slice(0, -2));
+  return json.table.rows;
+}
+
+function val(cell) {
+  return cell?.v ?? '';
+}
+
+// Country code → flag emoji
+const countryFlags = {
+  'Argentina':'🇦🇷','Argentina AR':'🇦🇷','AR':'🇦🇷',
+  'Brasil':'🇧🇷','Brazil':'🇧🇷','BR':'🇧🇷',
+  'China':'🇨🇳','CN':'🇨🇳',
+  'USA':'🇺🇸','Estados Unidos':'🇺🇸','US':'🇺🇸',
+  'Alemania':'🇩🇪','Germany':'🇩🇪','DE':'🇩🇪',
+  'Italia':'🇮🇹','IT':'🇮🇹',
+  'España':'🇪🇸','Spain':'🇪🇸','ES':'🇪🇸',
+  'México':'🇲🇽','Mexico':'🇲🇽','MX':'🇲🇽',
+  'Japón':'🇯🇵','Japan':'🇯🇵','JP':'🇯🇵',
+  'Francia':'🇫🇷','France':'🇫🇷','FR':'🇫🇷',
+  'Uruguay':'🇺🇾','UY':'🇺🇾',
+  'Chile':'🇨🇱','CL':'🇨🇱',
+};
+
+function getFlag(origen) {
+  if (!origen) return '';
+  for (const [key, flag] of Object.entries(countryFlags)) {
+    if (origen.toLowerCase().includes(key.toLowerCase())) return flag;
+  }
+  return '🌐';
+}
+
+function genOrderCode() {
+  return 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2,4).toUpperCase();
+}
+
+// ─── Load Setup Data ──────────────────────────────────────────────
+// El sheet tiene estructura HORIZONTAL:
+//   Fila 1 (index 0): encabezados en cada columna
+//   Fila 2 (index 1): valores correspondientes
+// Columnas según lo visto: A=nombre, B=logotipo, C=correo, D=telefono,
+// E=direccion, F=localidad, G=provincia, H=pais, I=color1, J=color2,
+// K=color3, L=banner, M=instagram, N=facebook, O=x, P=website,
+// Q=moneda, R=horario semana, S=dias semana, T=horario sábado, U=dias sábado
+
+async function loadSetup() {
+  try {
+    const res = await fetch(sheetUrl(SETUP_SHEET_ID));
+    const text = await res.text();
+    const rows = parseSheet(text);
+
+    // Fila 0 = headers, Fila 1 = valores
+    const headers = rows[0]?.c ?? [];
+    const values  = rows[1]?.c ?? [];
+
+    // Construir mapa header → valor (normalizado sin tildes)
+    headers.forEach((cell, i) => {
+      const label = String(cell?.v ?? '').trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const value = String(values[i]?.v ?? '').trim();
+      if (label) setupData[label] = value;
+      // También guardar por índice de columna como fallback
+      setupData[`_col${i}`] = value;
+    });
+
+    console.log('📋 setupData:', setupData);
+    applySetup();
+  } catch(e) {
+    console.warn('No se pudo cargar setup-data:', e);
+  }
+}
+
+// Busca valor por palabra clave en el header (sin tildes) o por índice de columna
+function getSetup(colIndex, ...keywords) {
+  // Por índice exacto de columna (más confiable)
+  const byIndex = setupData[`_col${colIndex}`];
+  if (byIndex && byIndex !== 'null') return byIndex;
+  // Por keyword en header
+  for (const kw of keywords) {
+    const kwNorm = kw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const key = Object.keys(setupData).find(k => !k.startsWith('_col') && k.includes(kwNorm));
+    if (key && setupData[key] && setupData[key] !== 'null') return setupData[key];
+  }
+  return '';
+}
+
+function applySetup() {
+  // Columnas confirmadas del xlsx real (16 columnas, índice 0-15):
+  // 0=nombre empresa, 1=logotipo, 2=correo electronico, 3=telefono,
+  // 4=direccion, 5=localidad, 6=provincia, 7=pais,
+  // 8=color marca 1, 9=color marca 2, 10=color marca 3,
+  // 11=imagen banner, 12=Instagram, 13=Facebook, 14=X, 15=Website
+  const nombre    = getSetup(0,  'nombre','empresa')        || 'FerreApp 🛠️';
+  const logo      = getSetup(1,  'logotipo','logo');
+  const email     = getSetup(2,  'correo','email','mail');
+  const telefonoRaw = getSetup(3, 'telefono','tel','phone');
+  // El teléfono puede venir como número entero desde el sheet (ej: 549111141819344)
+  const telefono  = telefonoRaw ? String(telefonoRaw).replace(/\.0$/, '') : '';
+  const direccion = getSetup(4,  'direccion','address');
+  const localidad = getSetup(5,  'localidad');
+  const provincia = getSetup(6,  'provincia');
+  const pais      = getSetup(7,  'pais','country');
+  const color1    = getSetup(8,  'color marca 1','color 1') || '#3B82F6';
+  const color2    = getSetup(9,  'color marca 2','color 2') || '#10B981';
+  const color3    = getSetup(10, 'color marca 3','color 3') || '#1e293b';
+  const banner    = getSetup(11, 'banner','imagen');
+  const instagram = getSetup(12, 'instagram');
+  const facebook  = getSetup(13, 'facebook');
+  const twitter   = getSetup(14, 'twitter','x');
+  const website   = getSetup(15, 'website','web');
+  // Moneda y horarios: columnas opcionales (si el usuario las agrega al sheet)
+  const moneda      = getSetup(16, 'moneda','currency') || '$';
+  const horarioSem  = getSetup(17, 'horario');
+  const diasSem     = getSetup(18, 'dias');
+  const horarioSab  = getSetup(19, 'horario sabado');
+  const diasSab     = getSetup(20, 'dias sabado');
+
+  // Apply brand colors
+  const hexOk = v => /^#[0-9a-fA-F]{3,6}$/.test(String(v).trim());
+  if (hexOk(color1)) document.documentElement.style.setProperty('--color1', color1.trim());
+  if (hexOk(color2)) document.documentElement.style.setProperty('--color2', color2.trim());
+  if (hexOk(color3)) document.documentElement.style.setProperty('--color3', color3.trim());
+
+  // Empresa name & title
+  document.getElementById('empresa-nombre').textContent = nombre;
+  document.title = nombre + ' - Tu Tienda Digital';
+  document.getElementById('footer-empresa').textContent = '© 2025 ' + nombre;
+
+  // Logo
+  if (logo && logo.startsWith('http')) {
+    const logoImg = document.getElementById('logo-img');
+    logoImg.src = logo;
+    logoImg.classList.remove('hidden');
+  }
+
+  // Banner
+  if (banner && banner.startsWith('http')) {
+    document.getElementById('banner-img').src = banner;
+    document.getElementById('banner-section').classList.remove('hidden');
+  }
+
+  // Info bar
+  let showBar = false;
+  if (email) {
+    const el = document.getElementById('info-email');
+    el.href = 'mailto:' + email;
+    el.setAttribute('title', email);
+    showBar = true;
+  }
+  if (telefono) {
+    const el = document.getElementById('info-phone');
+    el.href = 'tel:+' + telefono.replace(/\D/g,'');
+    el.setAttribute('title', telefono);
+    showBar = true;
+  }
+  if (direccion) {
+    let addr = direccion;
+    if (localidad) addr += ' / ' + localidad;
+    if (provincia) addr += ' / ' + provincia;
+    if (pais) addr += ' / ' + pais;
+    document.getElementById('info-address').innerHTML = `<i data-feather="map-pin" class="w-4 h-4 inline mr-1"></i>${addr}`;
+    showBar = true;
+  }
+
+  let horasText = '';
+  if (diasSem && horarioSem) horasText = diasSem + ': ' + horarioSem;
+  if (diasSab && String(diasSab).toUpperCase() !== 'NO' && horarioSab) horasText += ' | Sáb: ' + horarioSab;
+  if (horasText) {
+    document.getElementById('info-hours').innerHTML = `<i data-feather="clock" class="w-4 h-4 inline mr-1"></i>${horasText}`;
+    showBar = true;
+  }
+  if (showBar) document.getElementById('store-info-bar').classList.remove('hidden');
+
+  // Socials — admite tanto URL completa como solo usuario
+  const setLink = (id, value) => {
+    if (!value) return;
+    document.getElementById(id).href = value.startsWith('http') ? value : '#';
+  };
+  setLink('social-instagram', instagram);
+  setLink('social-facebook',  facebook);
+  setLink('social-twitter',   twitter);
+  setLink('social-website',   website);
+
+  window.storeCurrency = moneda;
+  // Guardar teléfono para WhatsApp (solo dígitos)
+  window.storePhone = telefono.replace(/\D/g,'');
+
+  window.storeCurrency = moneda;
+  window.storePhone = telefono;
+
+  feather.replace();
+}
+
+// ─── Load Products ────────────────────────────────────────────────
+async function loadProducts() {
+  try {
+    const res = await fetch(sheetUrl(PRODUCTS_SHEET_ID));
+    const text = await res.text();
+    const rows = parseSheet(text);
+
+    allProducts = rows.map((row, i) => ({
+      id: i + 1,
+      name: String(val(row.c[0])),
+      brand: String(val(row.c[1]) || ''),
+      price: parseFloat(val(row.c[2])) || 0,
+      photo: String(val(row.c[3]) || `https://placehold.co/400x300?text=Sin+foto`),
+      category: String(val(row.c[4]) || 'General'),
+      details: String(val(row.c[5]) || ''),
+      origin: String(val(row.c[6]) || ''),
+    }));
+
+    filteredProducts = [...allProducts];
+    buildCategoryPills();
+    renderProducts();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('products-grid').innerHTML = `
+      <div class="col-span-full text-center py-12 text-red-400">
+        <i data-feather="alert-circle" class="w-8 h-8 mx-auto mb-2"></i>
+        <p>No se pudieron cargar los productos.</p>
+      </div>`;
+    feather.replace();
+  }
+}
+
+function buildCategoryPills() {
+  const cats = ['Todos', ...new Set(allProducts.map(p => p.category))];
+  const container = document.getElementById('cat-pills');
+  container.innerHTML = cats.map(c => `
+    <button class="cat-pill ${c === 'Todos' ? 'active' : ''}" data-cat="${c}">${c}</button>
+  `).join('');
+  container.querySelectorAll('.cat-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.cat;
+      container.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterProducts();
+    });
+  });
+}
+
+function filterProducts() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  filteredProducts = allProducts.filter(p => {
+    const matchCat = activeCategory === 'Todos' || p.category === activeCategory;
+    const matchSearch = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
+  renderProducts();
+}
+
+function renderProducts() {
+  const currency = window.storeCurrency || '$';
+  const grid = document.getElementById('products-grid');
+  if (!filteredProducts.length) {
+    grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><p>No hay productos que coincidan.</p></div>`;
+    return;
+  }
+  grid.innerHTML = filteredProducts.map(p => `
+    <div class="product-card bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100" data-id="${p.id}">
+      <div class="relative">
+        <img src="${p.photo}" alt="${p.name}" class="w-full h-48 object-cover" onerror="this.src='https://placehold.co/400x300?text=Sin+foto'">
+        ${p.origin ? `<span class="flag absolute top-2 right-2 bg-white rounded-full px-2 py-1 shadow text-base" title="${p.origin}">${getFlag(p.origin)}</span>` : ''}
+      </div>
+      <div class="p-4">
+        <p class="text-xs text-gray-400 mb-1 uppercase tracking-wide font-semibold">${p.category}</p>
+        <h3 class="font-extrabold text-gray-800 text-base leading-tight mb-1">${p.name}</h3>
+        ${p.brand ? `<p class="text-xs text-gray-400 mb-3">Marca: ${p.brand}</p>` : '<div class="mb-3"></div>'}
+        <div class="flex justify-between items-center mt-auto">
+          <span class="font-extrabold text-lg brand-accent">${currency}${p.price.toFixed(2)}</span>
+          <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 border border-gray-200 rounded-full px-1">
+              <button class="qty-btn hover:bg-gray-100 qty-dec" data-id="${p.id}">−</button>
+              <span class="font-bold text-sm w-5 text-center qty-val" data-id="${p.id}">1</span>
+              <button class="qty-btn hover:bg-gray-100 qty-inc" data-id="${p.id}">+</button>
+            </div>
+            <button class="add-to-cart brand-btn hover:opacity-90 text-white px-3 py-1 rounded-full text-xs font-bold transition"
+              data-id="${p.id}" data-name="${p.name}" data-price="${p.price}">
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // Product card click → modal
+  grid.querySelectorAll('.product-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.qty-btn') || e.target.closest('.add-to-cart')) return;
+      const id = parseInt(card.dataset.id);
+      openProductModal(id);
+    });
+  });
+
+  // Qty stepper in card
+  grid.querySelectorAll('.qty-dec').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const display = grid.querySelector(`.qty-val[data-id="${id}"]`);
+      let qty = parseInt(display.textContent);
+      if (qty > 1) display.textContent = qty - 1;
+    });
+  });
+  grid.querySelectorAll('.qty-inc').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const display = grid.querySelector(`.qty-val[data-id="${id}"]`);
+      let qty = parseInt(display.textContent);
+      display.textContent = qty + 1;
+    });
+  });
+
+  // Add to cart from card
+  grid.querySelectorAll('.add-to-cart').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const qtyDisplay = grid.querySelector(`.qty-val[data-id="${id}"]`);
+      const qty = parseInt(qtyDisplay?.textContent || '1');
+      const product = allProducts.find(p => p.id === id);
+      addToCart(product, qty);
+    });
+  });
+
+  feather.replace();
+}
+
+// ─── Cart ─────────────────────────────────────────────────────────
+function addToCart(product, qty = 1) {
+  const existing = cart.find(i => i.id === product.id);
+  if (existing) existing.quantity += qty;
+  else cart.push({ ...product, quantity: qty });
+  updateCartUI();
+  showToast(`✓ ${product.name} añadido`);
+}
+
+function updateCartUI() {
+  const currency = window.storeCurrency || '$';
+  const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
+
+  document.getElementById('cart-count').textContent = totalItems;
+  document.getElementById('cart-item-count-label').textContent = totalItems + ' artículo' + (totalItems !== 1 ? 's' : '');
+  document.getElementById('cart-total').textContent = currency + total.toFixed(2);
+  document.getElementById('checkout-btn').disabled = cart.length === 0;
+
+  const container = document.getElementById('cart-items');
+  if (!cart.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm p-4 text-center">Tu carrito está vacío</p>';
+    return;
+  }
+  container.innerHTML = cart.map(item => `
+    <div class="flex justify-between items-center p-3 rounded-xl hover:bg-gray-50 transition">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-bold text-gray-700 truncate">${item.name}</p>
+        <p class="text-xs text-gray-400">${currency}${item.price.toFixed(2)} × ${item.quantity}</p>
+      </div>
+      <button class="remove-item text-red-400 hover:text-red-600 ml-3 flex-shrink-0" data-id="${item.id}">
+        <i data-feather="trash-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  `).join('');
+  container.querySelectorAll('.remove-item').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cart = cart.filter(i => i.id !== parseInt(btn.dataset.id));
+      updateCartUI();
+    });
+  });
+  feather.replace();
+}
+
+// ─── Product Modal ────────────────────────────────────────────────
+function openProductModal(id) {
+  const p = allProducts.find(pr => pr.id === id);
+  if (!p) return;
+  modalProduct = p;
+  modalQty = 1;
+  const currency = window.storeCurrency || '$';
+
+  document.getElementById('modal-img').src = p.photo;
+  document.getElementById('modal-img').onerror = function(){ this.src='https://placehold.co/600x260?text=Sin+foto'; };
+  document.getElementById('modal-name').textContent = p.name;
+  document.getElementById('modal-brand').textContent = p.brand ? 'Marca: ' + p.brand : '';
+  document.getElementById('modal-category').textContent = p.category;
+  document.getElementById('modal-origin').textContent = p.origin ? getFlag(p.origin) + ' ' + p.origin : '';
+  document.getElementById('modal-details').textContent = p.details || 'Sin descripción adicional.';
+  document.getElementById('modal-price').textContent = currency + p.price.toFixed(2);
+  document.getElementById('modal-qty-display').textContent = '1';
+
+  document.getElementById('product-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  feather.replace();
+}
+
+function closeProductModal() {
+  document.getElementById('product-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  modalProduct = null;
+}
+
+document.getElementById('modal-close').addEventListener('click', closeProductModal);
+document.getElementById('modal-overlay').addEventListener('click', closeProductModal);
+
+document.getElementById('modal-qty-minus').addEventListener('click', () => {
+  if (modalQty > 1) modalQty--;
+  document.getElementById('modal-qty-display').textContent = modalQty;
+});
+document.getElementById('modal-qty-plus').addEventListener('click', () => {
+  modalQty++;
+  document.getElementById('modal-qty-display').textContent = modalQty;
+});
+
+document.getElementById('modal-add-btn').addEventListener('click', () => {
+  if (modalProduct) addToCart(modalProduct, modalQty);
+  closeProductModal();
+});
+
+// ─── Cart dropdown toggle ─────────────────────────────────────────
+document.getElementById('cart-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('cart-dropdown').classList.toggle('hidden');
+});
+document.addEventListener('click', () => {
+  document.getElementById('cart-dropdown').classList.add('hidden');
+});
+document.getElementById('cart-dropdown').addEventListener('click', e => e.stopPropagation());
+
+// ─── Checkout modal ───────────────────────────────────────────────
+document.getElementById('checkout-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openCheckoutModal();
+});
+
+function openCheckoutModal() {
+  const currency = window.storeCurrency || '$';
+  const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+
+  // Fill order summary
+  document.getElementById('checkout-items-list').innerHTML = cart.map(item => `
+    <div class="flex justify-between">
+      <span>${item.name} × ${item.quantity}</span>
+      <span class="font-bold">${currency}${(item.price * item.quantity).toFixed(2)}</span>
+    </div>
+  `).join('');
+  document.getElementById('checkout-total-display').textContent = currency + total.toFixed(2);
+
+  document.getElementById('cart-dropdown').classList.add('hidden');
+  document.getElementById('checkout-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  feather.replace();
+}
+
+function closeCheckoutModal() {
+  document.getElementById('checkout-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('checkout-modal-close').addEventListener('click', closeCheckoutModal);
+document.getElementById('checkout-overlay').addEventListener('click', closeCheckoutModal);
+
+document.getElementById('f-logistica').addEventListener('change', function() {
+  const grupo = document.getElementById('f-direccion-group');
+  if (this.value === 'envio') grupo.classList.remove('hidden');
+  else grupo.classList.add('hidden');
+});
+
+document.getElementById('send-whatsapp-btn').addEventListener('click', () => {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const dni = document.getElementById('f-dni').value.trim();
+  const logistica = document.getElementById('f-logistica').value;
+  const direccion = document.getElementById('f-direccion').value.trim();
+  const pago = document.getElementById('f-pago').value;
+
+  if (!nombre || !dni || !logistica || !pago) {
+    alert('Por favor completá todos los campos requeridos.');
+    return;
+  }
+  if (logistica === 'envio' && !direccion) {
+    alert('Por favor ingresá la dirección de envío.');
+    return;
+  }
+
+  const currency = window.storeCurrency || '$';
+  const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const orderCode = genOrderCode();
+
+  let msg = `🛒 *Pedido ${orderCode}*\n\n`;
+  msg += `Hola! Mi nombre es *${nombre}* (DNI: ${dni}) y quiero hacer el siguiente pedido:\n\n`;
+  msg += `*Artículos:*\n`;
+  cart.forEach(item => {
+    msg += `• ${item.name} × ${item.quantity} = ${currency}${(item.price * item.quantity).toFixed(2)}\n`;
+  });
+  msg += `\n*Total: ${currency}${total.toFixed(2)}*\n\n`;
+
+  if (logistica === 'retiro') {
+    msg += `📍 *RETIRA EL COMPRADOR*\n\n`;
+  } else {
+    msg += `🚚 *Se debe enviar a la siguiente dirección:*\n${direccion}\n\n`;
+  }
+
+  msg += `💳 El cliente abona mediante *${pago}*.\n`;
+
+  const phone = (window.storePhone || '').replace(/\D/g,'');
+  const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  window.open(waUrl, '_blank');
+
+  // Log to "Pedidos" (console for now; Google Sheets append would need backend)
+  console.log('Pedido generado:', { orderCode, nombre, dni, logistica, direccion, pago, items: cart, total });
+
+  closeCheckoutModal();
+});
+
+// ─── Search ───────────────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('input', filterProducts);
+
+// ─── Toast ────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.4s'; setTimeout(()=>t.remove(),400); }, 2500);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────
+(async () => {
+  await Promise.all([loadSetup(), loadProducts()]);
+})();
+</script>
+</body>
+</html>
