@@ -378,38 +378,41 @@ function getSetup(colIndex, ...keywords) {
 }
 
 function applySetup() {
-  // Columnas: 0=nombre, 1=logo, 2=correo, 3=tel, 4=dir, 5=loc, 6=prov, 7=pais,
-  //           8=color1, 9=color2, 10=color3, 11=banner, 12=ig, 13=fb, 14=x,
-  //           15=web, 16=moneda, 17=hor_sem, 18=dias_sem, 19=hor_sab, 20=dias_sab
-  const nombre    = getSetup(0,  'nombre','empresa')             || 'FerreApp 🛠️';
+  // Columnas confirmadas del xlsx real (16 columnas, índice 0-15):
+  // 0=nombre empresa, 1=logotipo, 2=correo electronico, 3=telefono,
+  // 4=direccion, 5=localidad, 6=provincia, 7=pais,
+  // 8=color marca 1, 9=color marca 2, 10=color marca 3,
+  // 11=imagen banner, 12=Instagram, 13=Facebook, 14=X, 15=Website
+  const nombre    = getSetup(0,  'nombre','empresa')        || 'FerreApp 🛠️';
   const logo      = getSetup(1,  'logotipo','logo');
   const email     = getSetup(2,  'correo','email','mail');
-  const telefono  = getSetup(3,  'telefono','tel','phone');
+  const telefonoRaw = getSetup(3, 'telefono','tel','phone');
+  // El teléfono puede venir como número entero desde el sheet (ej: 549111141819344)
+  const telefono  = telefonoRaw ? String(telefonoRaw).replace(/\.0$/, '') : '';
   const direccion = getSetup(4,  'direccion','address');
   const localidad = getSetup(5,  'localidad');
   const provincia = getSetup(6,  'provincia');
   const pais      = getSetup(7,  'pais','country');
-  const color1    = getSetup(8,  'color marca 1','color 1')      || '#3B82F6';
-  const color2    = getSetup(9,  'color marca 2','color 2')      || '#10B981';
-  const color3    = getSetup(10, 'color marca 3','color 3')      || '#1e293b';
-  const banner    = getSetup(11, 'banner','imagen banner');
+  const color1    = getSetup(8,  'color marca 1','color 1') || '#3B82F6';
+  const color2    = getSetup(9,  'color marca 2','color 2') || '#10B981';
+  const color3    = getSetup(10, 'color marca 3','color 3') || '#1e293b';
+  const banner    = getSetup(11, 'banner','imagen');
   const instagram = getSetup(12, 'instagram');
   const facebook  = getSetup(13, 'facebook');
-  const twitter   = getSetup(14, 'twitter', 'x');
-  const website   = getSetup(15, 'website','web','url');
-  const moneda    = getSetup(16, 'moneda','currency')             || '$';
+  const twitter   = getSetup(14, 'twitter','x');
+  const website   = getSetup(15, 'website','web');
+  // Moneda y horarios: columnas opcionales (si el usuario las agrega al sheet)
+  const moneda      = getSetup(16, 'moneda','currency') || '$';
   const horarioSem  = getSetup(17, 'horario');
-  const diasSem     = getSetup(18, 'dias','días');
-  const horarioSab  = getSetup(19, 'horario sabado','hor sab');
-  const diasSab     = getSetup(20, 'dias sabado','sab');
-
-  console.log('✅ Setup aplicado:', { nombre, email, telefono, color1, color2, color3 });
+  const diasSem     = getSetup(18, 'dias');
+  const horarioSab  = getSetup(19, 'horario sabado');
+  const diasSab     = getSetup(20, 'dias sabado');
 
   // Apply brand colors
-  const hexOk = v => /^#[0-9a-fA-F]{3,6}$/.test(v);
-  if (hexOk(color1)) document.documentElement.style.setProperty('--color1', color1);
-  if (hexOk(color2)) document.documentElement.style.setProperty('--color2', color2);
-  if (hexOk(color3)) document.documentElement.style.setProperty('--color3', color3);
+  const hexOk = v => /^#[0-9a-fA-F]{3,6}$/.test(String(v).trim());
+  if (hexOk(color1)) document.documentElement.style.setProperty('--color1', color1.trim());
+  if (hexOk(color2)) document.documentElement.style.setProperty('--color2', color2.trim());
+  if (hexOk(color3)) document.documentElement.style.setProperty('--color3', color3.trim());
 
   // Empresa name & title
   document.getElementById('empresa-nombre').textContent = nombre;
@@ -439,7 +442,7 @@ function applySetup() {
   }
   if (telefono) {
     const el = document.getElementById('info-phone');
-    el.href = 'tel:' + telefono.replace(/\s/g,'');
+    el.href = 'tel:+' + telefono.replace(/\D/g,'');
     el.setAttribute('title', telefono);
     showBar = true;
   }
@@ -448,7 +451,7 @@ function applySetup() {
     if (localidad) addr += ' / ' + localidad;
     if (provincia) addr += ' / ' + provincia;
     if (pais) addr += ' / ' + pais;
-    document.getElementById('info-address').innerHTML = `<i data-feather="map-pin" class="w-4 h-4 inline"></i> ${addr}`;
+    document.getElementById('info-address').innerHTML = `<i data-feather="map-pin" class="w-4 h-4 inline mr-1"></i>${addr}`;
     showBar = true;
   }
 
@@ -456,22 +459,24 @@ function applySetup() {
   if (diasSem && horarioSem) horasText = diasSem + ': ' + horarioSem;
   if (diasSab && String(diasSab).toUpperCase() !== 'NO' && horarioSab) horasText += ' | Sáb: ' + horarioSab;
   if (horasText) {
-    document.getElementById('info-hours').innerHTML = `<i data-feather="clock" class="w-4 h-4 inline"></i> ${horasText}`;
+    document.getElementById('info-hours').innerHTML = `<i data-feather="clock" class="w-4 h-4 inline mr-1"></i>${horasText}`;
     showBar = true;
   }
   if (showBar) document.getElementById('store-info-bar').classList.remove('hidden');
 
-  // Socials
-  const setSocial = (id, base, handle) => {
-    if (!handle) return;
-    document.getElementById(id).href = base + handle.replace('@','').replace(base,'');
+  // Socials — admite tanto URL completa como solo usuario
+  const setLink = (id, value) => {
+    if (!value) return;
+    document.getElementById(id).href = value.startsWith('http') ? value : '#';
   };
-  setSocial('social-instagram', 'https://instagram.com/', instagram);
-  setSocial('social-facebook',  'https://facebook.com/',  facebook);
-  setSocial('social-twitter',   'https://x.com/',         twitter);
-  if (website) {
-    document.getElementById('social-website').href = website.startsWith('http') ? website : 'https://' + website;
-  }
+  setLink('social-instagram', instagram);
+  setLink('social-facebook',  facebook);
+  setLink('social-twitter',   twitter);
+  setLink('social-website',   website);
+
+  window.storeCurrency = moneda;
+  // Guardar teléfono para WhatsApp (solo dígitos)
+  window.storePhone = telefono.replace(/\D/g,'');
 
   window.storeCurrency = moneda;
   window.storePhone = telefono;
